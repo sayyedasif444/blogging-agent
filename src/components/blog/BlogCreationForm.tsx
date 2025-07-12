@@ -135,13 +135,13 @@ export default function BlogCreationForm({ onBlogGenerated, creditsLeft = 2, onT
             id="topic"
             rows={3}
             className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
-            placeholder="Enter your blog topic or idea (e.g., 'The future of artificial intelligence and its impact on society')"
+            placeholder="Enter your blog topic or idea (e.g., &apos;The future of artificial intelligence and its impact on society&apos;)"
             value={topic}
             onChange={handleTopicChange}
             disabled={isGenerating}
           />
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Be specific and include any key points you'd like to cover
+            {`Be specific and include any key points you'd like to cover`}
           </p>
         </div>
 

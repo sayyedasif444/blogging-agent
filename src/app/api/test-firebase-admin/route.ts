@@ -5,6 +5,16 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Testing Firebase Admin connection...');
     
+    if (!adminDb) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Firebase Admin not initialized'
+        },
+        { status: 500 }
+      );
+    }
+    
     // Test basic Firestore connection with a simple operation
     const testRef = adminDb.collection('test');
     

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobStatus, getAllJobs } from '../generate-blog-async/route';
+import { getJobStatus, getAllJobs } from '@/lib/blog-job-manager';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
