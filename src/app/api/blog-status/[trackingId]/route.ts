@@ -1,28 +1,5 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-// File-based storage for blog generation jobs
-const JOBS_FILE = path.join(process.cwd(), 'data', 'blog-jobs.json');
-
-// Load jobs from file
-const loadJobs = () => {
-  const dataDir = path.dirname(JOBS_FILE);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  
-  if (!fs.existsSync(JOBS_FILE)) {
-    return {};
-  }
-  try {
-    const data = fs.readFileSync(JOBS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error loading jobs:', error);
-    return {};
-  }
-};
+import { getJobStatus } from '@/lib/blog-job-manager';
 
 export async function GET(
   request: Request,
@@ -38,12 +15,11 @@ export async function GET(
       );
     }
 
-    const jobs = loadJobs();
-    const job = jobs[trackingId];
+    const job = await getJobStatus(trackingId);
 
-    if (!job) {
+    if (job.error) {
       return NextResponse.json(
-        { error: 'Job not found' },
+        { error: job.error },
         { status: 404 }
       );
     }

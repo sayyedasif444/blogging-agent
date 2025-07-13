@@ -5,7 +5,7 @@ import { evaluateAndRateBlog } from '@/lib/agents/evaluateAndRateBlog';
 import { rewriteBlogWithFeedback } from '@/lib/agents/rewriteBlog';
 import { generateSearchQuery } from '@/lib/agents/generateImageSearchQuery';
 import { findRelevantImages } from '@/lib/agents/findRelevantImages';
-import { loadJobs, saveJobs, updateJobStatus, removeJobFromFile } from '@/lib/blog-job-manager';
+import { createJob, updateJobStatus, removeJobFromFirestore } from '@/lib/blog-job-manager';
 
 // TypeScript interfaces
 interface BlogContent {
@@ -63,10 +63,8 @@ export async function POST(request: Request) {
       rating: null
     };
 
-    // Store initial job in file
-    const jobs = loadJobs();
-    jobs[trackingId] = initialJob;
-    saveJobs(jobs);
+    // Store initial job in Firestore
+    await createJob(initialJob);
 
     console.log(`🚀 Created job ${trackingId} for topic: ${topic}`);
 

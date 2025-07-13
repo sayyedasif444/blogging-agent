@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import { realDb as db } from '@/lib/firebase-real';
+import { doc, setDoc, getDoc, getDocs, collection, query, orderBy, deleteDoc } from 'firebase/firestore';
 
 // TypeScript interfaces
 interface BlogContent {
@@ -27,62 +27,31 @@ interface JobData {
   rating: BlogRating | null;
 }
 
-// File-based storage for blog generation jobs
-const JOBS_FILE = path.join(process.cwd(), 'data', 'blog-jobs.json');
+// Firebase collection name for jobs
+const JOBS_COLLECTION = 'blog-jobs';
 
-// Ensure data directory exists
-const ensureDataDir = () => {
-  const dataDir = path.dirname(JOBS_FILE);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-};
-
-// Load jobs from file
-export const loadJobs = () => {
-  ensureDataDir();
-  if (!fs.existsSync(JOBS_FILE)) {
-    return {};
-  }
-  try {
-    const data = fs.readFileSync(JOBS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error loading jobs:', error);
-    return {};
-  }
-};
-
-// Save jobs to file
-export const saveJobs = (jobs: any) => {
-  ensureDataDir();
-  try {
-    fs.writeFileSync(JOBS_FILE, JSON.stringify(jobs, null, 2));
-  } catch (error) {
-    console.error('Error saving jobs:', error);
-  }
-};
-
-// Helper function to update job status in file
+// Helper function to update job status in Firestore
 export const updateJobStatus = async (trackingId: string, status: string, progress: number, message: string, data: any = {}) => {
   try {
-    const jobs = loadJobs();
-    if (jobs[trackingId]) {
-      jobs[trackingId] = {
-        ...jobs[trackingId],
+    const jobRef = doc(db, JOBS_COLLECTION, trackingId);
+    const jobDoc = await getDoc(jobRef);
+    
+    if (jobDoc.exists()) {
+      const currentData = jobDoc.data();
+      await setDoc(jobRef, {
+        ...currentData,
         status,
         progress,
         message,
         updatedAt: new Date().toISOString(),
         ...data
-      };
-      saveJobs(jobs);
+      });
       console.log(`📊 Job ${trackingId}: ${status} (${progress}%) - ${message}`);
       
       // Remove completed or failed jobs after a delay
       if (status === 'completed' || status === 'failed') {
-        setTimeout(() => {
-          removeJobFromFile(trackingId);
+        setTimeout(async () => {
+          await removeJobFromFirestore(trackingId);
         }, 30000); // Remove after 30 seconds
       }
     }
@@ -91,31 +60,28 @@ export const updateJobStatus = async (trackingId: string, status: string, progre
   }
 };
 
-// Helper function to remove job from file
-export const removeJobFromFile = (trackingId: string) => {
+// Helper function to remove job from Firestore
+export const removeJobFromFirestore = async (trackingId: string) => {
   try {
-    const jobs = loadJobs();
-    if (jobs[trackingId]) {
-      delete jobs[trackingId];
-      saveJobs(jobs);
-      console.log(`🗑️ Removed completed job ${trackingId} from file`);
-    }
+    const jobRef = doc(db, JOBS_COLLECTION, trackingId);
+    await deleteDoc(jobRef);
+    console.log(`🗑️ Removed completed job ${trackingId} from Firestore`);
   } catch (error) {
-    console.error(`❌ Failed to remove job ${trackingId} from file:`, error);
+    console.error(`❌ Failed to remove job ${trackingId} from Firestore:`, error);
   }
 };
 
 // Helper function for status checking
 export const getJobStatus = async (trackingId: string) => {
   try {
-    const jobs = loadJobs();
-    const job = jobs[trackingId];
+    const jobRef = doc(db, JOBS_COLLECTION, trackingId);
+    const jobDoc = await getDoc(jobRef);
     
-    if (!job) {
+    if (!jobDoc.exists()) {
       return { error: 'Job not found' };
     }
     
-    return job;
+    return jobDoc.data();
   } catch (error) {
     console.error('❌ Error getting job status:', error);
     return { error: 'Failed to get job status' };
@@ -125,13 +91,41 @@ export const getJobStatus = async (trackingId: string) => {
 // Helper function for getting all jobs
 export const getAllJobs = async () => {
   try {
-    const jobs = loadJobs();
-    const jobsArray = Object.values(jobs);
+    const jobsRef = collection(db, JOBS_COLLECTION);
+    const q = query(jobsRef, orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
     
-    // Sort by creation date (newest first)
-    return jobsArray.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const jobs: any[] = [];
+    querySnapshot.forEach((doc) => {
+      jobs.push(doc.data());
+    });
+    
+    return jobs;
   } catch (error) {
     console.error('❌ Error getting all jobs:', error);
     return [];
   }
+};
+
+// Helper function to create a new job
+export const createJob = async (jobData: JobData) => {
+  try {
+    const jobRef = doc(db, JOBS_COLLECTION, jobData.trackingId);
+    await setDoc(jobRef, jobData);
+    console.log(`🚀 Created job ${jobData.trackingId} in Firestore`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error creating job:', error);
+    return false;
+  }
+};
+
+// Legacy functions for backward compatibility (keeping the same interface)
+export const loadJobs = () => {
+  console.warn('loadJobs is deprecated, use Firestore instead');
+  return {};
+};
+
+export const saveJobs = (jobs: any) => {
+  console.warn('saveJobs is deprecated, use Firestore instead');
 }; 
